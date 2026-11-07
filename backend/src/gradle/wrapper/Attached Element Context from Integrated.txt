@@ -1,0 +1,29 @@
+Attached Element Context from Integrated Browser
+
+Element: body
+
+URL: https://3nkhfd9j-8080.usw2.devtunnels.ms/
+
+HTML Path: body
+
+Outer HTML:
+```html
+<body></body>
+```
+
+Dimensions:
+- top: 0px
+- left: 0px
+- width: 1094px
+- height: 552px
+
+CSS:
+```css
+
+
+/* Resolved values */
+margin: 8px /*UA*/;
+display: block;
+height: 536px;
+width: 1078px;
+```

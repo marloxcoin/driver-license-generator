@@ -1,5 +1,4 @@
 document.getElementById('generateBtn').addEventListener('click', () => {
-    const state = document.getElementById('state').value;
     const firstName = document.getElementById('firstName').value;
     const lastName = document.getElementById('lastName').value;
 
@@ -8,7 +7,7 @@ document.getElementById('generateBtn').addEventListener('click', () => {
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ state, firstName, lastName })
+        body: JSON.stringify({ state: document.getElementById('state').value, firstName, lastName })
     })
     .then(response => response.json())
     .then(data => {

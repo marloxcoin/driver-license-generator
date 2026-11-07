@@ -1,0 +1,10 @@
+{
+  "java.configuration.updateBuildConfiguration": "interactive",
+  "markdown.validate.enabled": true,
+  "chat.tools.urls.autoApprove": {
+    "https://code.visualstudio.com": true,
+    "https://github.com/microsoft/vscode/wiki/*": true
+  },
+  "java.help.collectErrorLog": true,
+  "appmod.javaUpgrade.enableQuickPick": true
+}

@@ -1,19 +1,24 @@
-<!-- //💡In the Beginning, PaPaGuy wrote beautiful Codes < /> 💜❤️ // -->
-package com.papaguycodes.driver-license-generator
+package com.papaguycodes.driver_license_generator
 
-import io.ktor.application.*
-import io.ktor.features.ContentNegotiation
-import io.ktor.features.StatusPages
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.jackson.jackson
-import io.ktor.response.respond
-import io.ktor.routing.*
+import io.ktor.serialization.jackson.jackson
+import io.ktor.server.application.Application
+import io.ktor.server.application.call
+import io.ktor.server.application.install
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-import io.ktor.request.receive
-import io.ktor.server.html.*
-import kotlinx.html.*
-import com.github.javafaker.Faker
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.plugins.statuspages.StatusPages
+import io.ktor.server.request.receive
+import io.ktor.server.response.respond
+import io.ktor.server.response.respondText
+import io.ktor.server.routing.get
+import io.ktor.server.routing.post
+import io.ktor.server.routing.route
+import io.ktor.server.routing.routing
+import java.time.LocalDate
+import java.time.format.DateTimeParseException
 
 fun main() {
     embeddedServer(Netty, port = 8080, module = Application::module).start(wait = true)
@@ -21,98 +26,116 @@ fun main() {
 
 fun Application.module() {
     install(ContentNegotiation) {
-        jackson { }
+        jackson()
     }
 
     install(StatusPages) {
-        exception<Throwable> { cause ->
+        exception<Throwable> { call, cause ->
             call.respond(HttpStatusCode.InternalServerError, cause.localizedMessage)
         }
     }
 
     routing {
+        get("/") {
+            val page = requireNotNull(Application::class.java.classLoader.getResource("index.html")) {
+                "Frontend page index.html is missing from the application resources"
+            }
+            call.respondText(page.readText(), ContentType.Text.Html)
+        }
+
         route("/generate") {
             post {
                 val params = call.receive<LicenseRequest>()
-                val license = generateLicense(params.state, params.firstName, params.lastName)
-                call.respond(LicenseResponse(license))
+                val errors = validateProfile(params)
+                if (errors.isNotEmpty()) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("errors" to errors))
+                    return@post
+                }
+
+                call.respond(
+                    LicenseResponse(
+                        isSample = true,
+                        notice = "SAMPLE - NOT A REAL LICENSE",
+                        state = params.state.trim().uppercase(),
+                        firstName = params.firstName.trim(),
+                        middleName = params.middleName.trim(),
+                        lastName = params.lastName.trim(),
+                        dateOfBirth = params.dateOfBirth.trim(),
+                        address = params.address.trim(),
+                        sampleId = "TEST-000001"
+                    )
+                )
             }
         }
 
         route("/validate") {
             post {
-                val params = call.receive<ValidationRequest>()
-                val isValid = validateLicenseNumber(params.state, params.licenseNumber)
-                call.respond(mapOf("valid" to isValid))
+                val errors = validateProfile(call.receive<LicenseRequest>())
+                call.respond(mapOf("valid" to errors.isEmpty(), "errors" to errors))
             }
         }
     }
 }
 
-data class LicenseRequest(val state: String, val firstName: String, val lastName: String)
-data class LicenseResponse(val licenseNumber: String)
-data class ValidationRequest(val state: String, val licenseNumber: String)
+data class LicenseRequest(
+    val state: String = "WA",
+    val firstName: String = "MARLEY",
+    val middleName: String = "",
+    val lastName: String = "",
+    val dateOfBirth: String = "",
+    val address: String = ""
+)
 
-fun generateLicense(state: String, firstName: String, lastName: String): String {
-    val initials = (firstName.firstOrNull() ?: 'X').toUpperCase() + (lastName.firstOrNull() ?: 'X').toUpperCase()
-    val randomDigits = (100000..999999).random().toString()
-    return "$state-$initials-$randomDigits"
-}
+data class LicenseResponse(
+    val isSample: Boolean,
+    val notice: String,
+    val state: String,
+    val firstName: String,
+    val middleName: String,
+    val lastName: String,
+    val dateOfBirth: String,
+    val address: String,
+    val sampleId: String
+)
 
-fun validateLicenseNumber(state: String, licenseNumber: String): Boolean {
-    val patterns = mapOf(
-        'AL': /^AL[A-Z]{3}\d{2}\d{6}$/,
-            'AK': /^AK[A-Z]{5}\d{4}$/,
-            'AZ': /^AZ[A-Z]\d{2}\d{6}$/,
-            'AR': /^AR[A-Z]{4}\d{2}\d{6}$/,
-            'CA': /^CA[A-Z]{5}\d{2}\d{6}$/,
-            'CO': /^CO[A-Z]{3}\d{4}\d{6}$/,
-            'CT': /^CT[A-Z]{3}\d{2}\d{6}$/,
-            'DE': /^DE[A-Z]{3}\d{4}\d{6}$/,
-            'FL': /^FL[A-Z]{5}\d{2}\d{6}$/,
-            'GA': /^GA[A-Z]{6}\d{4}\d{6}$/,
-            'HI': /^HI[A-Z]{3}\d{2}\d{6}$/,
-            'ID': /^ID[A-Z]{4}\d{4}\d{6}$/,
-            'IL': /^IL[A-Z]{5}\d{4}\d{6}$/,
-            'IN': /^IN[A-Z]{4}\d{2}\d{6}$/,
-            'IA': /^IA[A-Z]{3}\d{4}\d{6}$/,
-            'KS': /^KS[A-Z]{5}\d{4}\d{6}$/,
-            'KY': /^KY[A-Z]{4}\d{4}\d{6}$/,
-            'LA': /^LA[A-Z]{4}\d{2}\d{6}$/,
-            'ME': /^ME[A-Z]{4}\d{4}\d{6}$/,
-            'MD': /^MD[A-Z]{4}\d{2}\d{6}$/,
-            'MA': /^MA[A-Z]{3}\d{4}\d{6}$/,
-            'MI': /^MI[A-Z]{5}\d{2}\d{6}$/,
-            'MN': /^MN[A-Z]{4}\d{4}\d{6}$/,
-            'MS': /^MS[A-Z]{4}\d{4}\d{6}$/,
-            'MO': /^MO[A-Z]{5}\d{2}\d{6}$/,
-            'MT': /^MT[A-Z]{4}\d{4}\d{6}$/,
-            'NE': /^NE[A-Z]{4}\d{2}\d{6}$/,
-            'NV': /^NV[A-Z]{4}\d{4}\d{6}$/,
-            'NH': /^NH[A-Z]{4}\d{2}\d{6}$/,
-            'NJ': /^NJ[A-Z]{5}\d{4}\d{6}$/,
-            'NM': /^NM[A-Z]{4}\d{4}\d{6}$/,
-            'NY': /^NY[A-Z]{3}\d{2}\d{6}$/,
-            'NC': /^NC[A-Z]{4}\d{2}\d{6}$/,
-            'ND': /^ND[A-Z]{4}\d{4}\d{6}$/,
-            'OH': /^OH[A-Z]{4}\d{2}\d{6}$/,
-            'OK': /^OK[A-Z]{4}\d{4}\d{6}$/,
-            'OR': /^OR[A-Z]{4}\d{2}\d{6}$/,
-            'PA': /^PA[A-Z]{4}\d{4}\d{6}$/,
-            'RI': /^RI[A-Z]{3}\d{4}\d{6}$/,
-            'SC': /^SC[A-Z]{5}\d{2}\d{6}$/,
-            'SD': /^SD[A-Z]{4}\d{4}\d{6}$/,
-            'TN': /^TN[A-Z]{4}\d{2}\d{6}$/,
-            'TX': /^TX[A-Z]{5}\d{2}\d{6}$/,
-            'UT': /^UT[A-Z]{4}\d{4}\d{6}$/,
-            'VT': /^VT[A-Z]{4}\d{2}\d{6}$/,
-            'VA': /^VA[A-Z]{5}\d{4}\d{6}$/,
-            'WA': /^WA[A-Z]{4}\d{4}\d{6}$/,
-            'WV': /^WV[A-Z]{4}\d{2}\d{6}$/,
-            'WI': /^WI[A-Z]{5}\d{4}\d{6}$/,
-            'WY': /^WY[A-Z]{4}\d{2}\d{6}$/,
-            'DC': /^DC[A-Z]{4}\d{2}\d{6}$/
-    )
-    val regex = patterns[state]?.toRegex() ?: return false
-    return regex.matches(licenseNumber)
+private fun validateProfile(request: LicenseRequest): List<String> {
+    val errors = mutableListOf<String>()
+    val state = request.state.trim()
+    val firstName = request.firstName.trim()
+    val middleName = request.middleName.trim()
+    val lastName = request.lastName.trim()
+    val dateOfBirth = request.dateOfBirth.trim()
+    val address = request.address.trim()
+
+    if (!state.matches(Regex("[A-Za-z]{2}"))) {
+        errors += "Demo region code must be exactly two letters."
+    }
+    if (firstName.isEmpty()) {
+        errors += "First name is required."
+    } else if (firstName.length > 60) {
+        errors += "First name must be 60 characters or fewer."
+    }
+    if (middleName.length > 60) {
+        errors += "Middle name must be 60 characters or fewer."
+    }
+    if (lastName.isEmpty()) {
+        errors += "Last name is required."
+    } else if (lastName.length > 60) {
+        errors += "Last name must be 60 characters or fewer."
+    }
+    if (address.isEmpty()) {
+        errors += "Fictional address is required."
+    } else if (address.length > 160) {
+        errors += "Fictional address must be 160 characters or fewer."
+    }
+
+    try {
+        if (LocalDate.parse(dateOfBirth).isAfter(LocalDate.now())) {
+            errors += "Date of birth cannot be in the future."
+        }
+    } catch (_: DateTimeParseException) {
+        errors += "Enter a valid date of birth."
+    }
+
+    return errors
 }

@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f7fb">
+  <title>Sample Profile Generator</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, "Segoe UI", Arial, sans-serif;
+      color: #17233b;
+      background: #f5f7fb;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --blue: #3156d3;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      background:
+        radial-gradient(ellipse at 10% 0%, #e8edff 0, transparent 38rem),
+        #f5f7fb;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 28px 28px 18px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 750; }
+    .brand-mark {
+      display: grid;
+      width: 40px;
+      height: 40px;
+      place-items: center;
+      border-radius: 12px;
+      background: #e1e8ff;
+      color: var(--blue);
+      font-size: 19px;
+    }
+
+    .pill {
+      padding: 8px 12px;
+      border: 1px solid #f3d48b;
+      border-radius: 999px;
+      background: #fff9e9;
+      color: #79550b;
+      font-size: 12px;
+      font-weight: 750;
+      letter-spacing: .04em;
+    }
+
+    main { max-width: 1100px; margin: 0 auto; padding: 24px 28px 64px; }
+    .intro { max-width: 680px; margin: 0 0 28px; }
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 0; font-size: clamp(30px, 5vw, 42px); letter-spacing: -.04em; }
+    .intro p:last-child { margin: 12px 0 0; color: var(--muted); line-height: 1.65; }
+
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, .86fr); gap: 22px; align-items: start; }
+    .panel {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #fff;
+      box-shadow: 0 14px 40px #1a2a4a0b;
+    }
+    .panel-head { padding: 23px 24px 0; }
+    h2 { margin: 0; font-size: 18px; letter-spacing: -.02em; }
+    .panel-head p { margin: 7px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    form { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 22px 24px 24px; }
+    .field { display: grid; gap: 7px; }
+    .field.full { grid-column: 1 / -1; }
+    label { color: #334155; font-size: 13px; font-weight: 650; }
+    input {
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 9px;
+      background: #fff;
+      color: #17233b;
+      font: inherit;
+      font-size: 14px;
+    }
+    input:focus { border-color: var(--blue); outline: 3px solid #3156d31c; }
+    input::placeholder { color: #94a3b8; }
+    .hint { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .form-actions { display: flex; grid-column: 1 / -1; align-items: center; gap: 14px; padding-top: 3px; }
+    button {
+      min-height: 44px;
+      padding: 0 18px;
+      border: 0;
+      border-radius: 9px;
+      background: var(--blue);
+      color: #fff;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button:hover { background: #2445b4; }
+    button:disabled { cursor: wait; opacity: .65; }
+    .status { min-height: 18px; color: var(--muted); font-size: 13px; }
+    .status.error { color: #b42318; }
+
+    .result { min-height: 280px; padding: 22px 24px 24px; }
+    .empty {
+      display: grid;
+      min-height: 230px;
+      place-content: center;
+      justify-items: center;
+      text-align: center;
+      color: var(--muted);
+    }
+    .empty-icon {
+      display: grid;
+      width: 48px;
+      height: 48px;
+      place-items: center;
+      margin-bottom: 14px;
+      border-radius: 14px;
+      background: #f1f5f9;
+      font-size: 21px;
+    }
+    .empty strong { color: #334155; font-size: 14px; }
+    .empty p { max-width: 230px; margin: 7px 0 0; font-size: 13px; line-height: 1.5; }
+    .sample-warning {
+      margin-bottom: 19px;
+      padding: 12px 13px;
+      border: 1px solid #f3d48b;
+      border-radius: 10px;
+      background: #fff9e9;
+      color: #704b00;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .045em;
+      text-align: center;
+    }
+    .details { display: grid; grid-template-columns: 1fr 1fr; gap: 17px 12px; }
+    .detail { min-width: 0; }
+    .detail.full { grid-column: 1 / -1; }
+    .detail-label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+    .detail-value { overflow-wrap: anywhere; color: #17233b; font-size: 14px; font-weight: 650; }
+
+    @media (max-width: 760px) {
+      header { padding: 20px 18px 12px; }
+      main { padding: 22px 18px 40px; }
+      .layout { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 440px) {
+      .pill { font-size: 10px; }
+      .panel-head { padding-right: 18px; padding-left: 18px; }
+      form, .result { padding-right: 18px; padding-left: 18px; }
+      form { grid-template-columns: 1fr; }
+      .field.full, .form-actions { grid-column: auto; }
+      .form-actions { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="brand-mark" aria-hidden="true">✦</span><span>Sample Studio</span></div>
+    <span class="pill">DEMO ONLY</span>
+  </header>
+
+  <main>
+    <section class="intro" aria-labelledby="page-title">
+      <p class="eyebrow">Fictional data preview</p>
+      <h1>Build a sample profile</h1>
+      <p>Enter made-up details to preview how your app handles profile data. This tool creates a plain sample profile only; it does not create or validate an official identity document.</p>
+    </section>
+
+    <div class="layout">
+      <section class="panel" aria-labelledby="form-title">
+        <div class="panel-head">
+          <h2 id="form-title">Sample details</h2>
+          <p>Use fictional information. The state field is just a two-letter demo label.</p>
+        </div>
+        <form id="profile-form">
+          <div class="field">
+            <label for="state">Demo region code</label>
+            <input id="state" name="state" autocomplete="off" maxlength="2" pattern="[A-Za-z]{2}" title="Enter exactly two letters, such as ZZ." placeholder="ZZ" value="ZZ" required>
+          </div>
+          <div class="field">
+            <label for="dateOfBirth">Date of birth</label>
+            <input id="dateOfBirth" name="dateOfBirth" type="date" required>
+          </div>
+          <div class="field">
+            <label for="firstName">First name</label>
+            <input id="firstName" name="firstName" autocomplete="off" maxlength="60" placeholder="Alex" required>
+          </div>
+          <div class="field">
+            <label for="middleName">Middle name or initial</label>
+            <input id="middleName" name="middleName" autocomplete="off" maxlength="60" placeholder="M">
+          </div>
+          <div class="field">
+            <label for="lastName">Last name</label>
+            <input id="lastName" name="lastName" autocomplete="off" maxlength="60" placeholder="Example" required>
+          </div>
+          <div class="field">
+            <label for="address">Fictional address</label>
+            <input id="address" name="address" autocomplete="off" maxlength="160" placeholder="123 Example Street, Sampleville" required>
+          </div>
+          <div class="form-actions">
+            <button id="submit-button" type="submit">Generate sample profile</button>
+            <span id="status" class="status" role="status" aria-live="polite"></span>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel" aria-labelledby="result-title">
+        <div class="panel-head">
+          <h2 id="result-title">Preview</h2>
+          <p>Your fictional profile will appear here.</p>
+        </div>
+        <div id="result" class="result">
+          <div class="empty">
+            <span class="empty-icon" aria-hidden="true">✧</span>
+            <strong>No sample generated yet</strong>
+            <p>Fill in the form and generate a sample to see the result.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const form = document.querySelector("#profile-form");
+    const result = document.querySelector("#result");
+    const status = document.querySelector("#status");
+    const submitButton = document.querySelector("#submit-button");
+
+    function addDetail(container, label, value, full = false) {
+      const item = document.createElement("div");
+      item.className = full ? "detail full" : "detail";
+      const heading = document.createElement("span");
+      heading.className = "detail-label";
+      heading.textContent = label;
+      const text = document.createElement("span");
+      text.className = "detail-value";
+      text.textContent = value || "—";
+      item.append(heading, text);
+      container.append(item);
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      status.textContent = "";
+      status.classList.remove("error");
+      submitButton.disabled = true;
+      submitButton.textContent = "Generating…";
+
+      const values = new FormData(form);
+      const request = Object.fromEntries(values.entries());
+      request.state = request.state.trim().toUpperCase();
+      request.middleName = request.middleName.trim();
+
+      try {
+        status.textContent = "Checking your sample details…";
+        const validationResponse = await fetch("/validate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(request)
+        });
+        if (!validationResponse.ok) {
+          throw new Error(`The validation service returned ${validationResponse.status}. Check that the backend is running and try again.`);
+        }
+        const validation = await validationResponse.json();
+        if (!validation.valid) {
+          status.textContent = validation.errors.join(" ");
+          status.classList.add("error");
+          return;
+        }
+
+        status.textContent = "Generating your sample…";
+        const response = await fetch("/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(request)
+        });
+        if (!response.ok) {
+          const failure = await response.json();
+          throw new Error(failure.errors?.join(" ") || `The server returned ${response.status}.`);
+        }
+
+        const profile = await response.json();
+        const warning = document.createElement("div");
+        warning.className = "sample-warning";
+        warning.textContent = profile.notice || "SAMPLE - NOT A REAL LICENSE";
+        const details = document.createElement("div");
+        details.className = "details";
+        addDetail(details, "Sample ID", profile.sampleId);
+        addDetail(details, "Demo region", profile.state);
+        addDetail(details, "First name", profile.firstName);
+        addDetail(details, "Middle name", profile.middleName);
+        addDetail(details, "Last name", profile.lastName);
+        addDetail(details, "Date of birth", profile.dateOfBirth);
+        addDetail(details, "Fictional address", profile.address, true);
+        result.replaceChildren(warning, details);
+        status.textContent = "Sample profile generated.";
+      } catch (error) {
+        status.textContent = error instanceof Error ? error.message : "Could not generate the sample profile.";
+        status.classList.add("error");
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = "Generate sample profile";
+      }
+    });
+  </script>
+</body>
+</html>

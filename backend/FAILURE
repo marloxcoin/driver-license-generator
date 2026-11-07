@@ -1,0 +1,227 @@
+const express = require('express');
+
+const app = express();
+app.disable('x-powered-by');
+
+function normalizeString(value) {
+  if (value === undefined || value === null) {
+    return '';
+  }
+
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return String(value).trim();
+  }
+
+  return '';
+}
+
+const normalizeState = (value) => {
+  const normalized = normalizeString(value);
+  return normalized ? normalized.toUpperCase() : 'WA';
+};
+
+const normalizeDate = (value) => normalizeString(value);
+
+const readField = (source, ...keys) => {
+  if (!source || typeof source !== 'object' || Array.isArray(source)) {
+    return undefined;
+  }
+
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(source, key)) {
+      return source[key];
+    }
+  }
+
+  return undefined;
+};
+
+const readDobField = (source) => readField(source, 'dob', 'dateOfBirth', 'date_of_birth') ?? '';
+
+const parseBody = (req) => {
+  if (!req || typeof req !== 'object' || !Object.prototype.hasOwnProperty.call(req, 'body')) {
+    return {};
+  }
+
+  if (typeof req.body === 'string') {
+    try {
+      const parsed = JSON.parse(req.body);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch (_error) {
+      return {};
+    }
+
+    return {};
+  }
+
+  if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) {
+    return req.body;
+  }
+
+  return {};
+};
+
+const parsePayload = (req) => {
+  const rawBody = parseBody(req);
+  const stateValue = readField(rawBody, 'state', 'region') ?? 'WA';
+  const dobValue = readField(rawBody, 'dob', 'dateOfBirth', 'date_of_birth') ?? '';
+
+  return {
+    state: normalizeState(stateValue),
+    firstName: normalizeString(readField(rawBody, 'firstName')),
+    middleName: normalizeString(readField(rawBody, 'middleName')),
+    lastName: normalizeString(readField(rawBody, 'lastName')),
+    dob: normalizeDate(dobValue),
+    address: normalizeString(readField(rawBody, 'address'))
+  };
+};
+
+function isValidDateString(value) {
+  if (!value) {
+    return false;
+  }
+
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
+    return false;
+  }
+
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime());
+}
+
+function validateProfile(payload) {
+  const errors = [];
+
+  const state = normalizeState(readField(payload, 'state') ?? 'WA');
+  const firstName = normalizeString(readField(payload, 'firstName'));
+  const middleName = normalizeString(readField(payload, 'middleName'));
+  const lastName = normalizeString(readField(payload, 'lastName'));
+  const dob = normalizeDate(readField(payload, 'dob') ?? '');
+  const address = normalizeString(readField(payload, 'address'));
+
+  if (!/^[A-Z]{2}$/.test(state)) {
+    errors.push('state must be exactly two letters');
+  }
+
+  if (!firstName) {
+    errors.push('firstName is required');
+  } else if (firstName.length > 60) {
+    errors.push('firstName must be 60 characters or fewer');
+  }
+
+  if (middleName.length > 60) {
+    errors.push('middleName must be 60 characters or fewer');
+  }
+
+  if (!lastName) {
+    errors.push('lastName is required');
+  } else if (lastName.length > 60) {
+    errors.push('lastName must be 60 characters or fewer');
+  }
+
+  if (!address) {
+    errors.push('address is required');
+  } else if (address.length > 160) {
+    errors.push('address must be 160 characters or fewer');
+  }
+
+  if (!dob) {
+    errors.push('dob is required');
+  } else {
+    if (!isValidDateString(dob)) {
+      errors.push('dob must be a valid date');
+    } else {
+      const date = new Date(dob);
+      if (date > new Date()) {
+        errors.push('dob cannot be in the future');
+      }
+    }
+  }
+
+  return errors;
+}
+
+app.use(express.json({ limit: '1mb', strict: false }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+app.get('/', (_req, res) => {
+  res.status(200).json({ ok: true, service: 'driver-license-generator-backend' });
+});
+
+app.get('/health', (_req, res) => {
+  res.status(200).json({ ok: true, service: 'driver-license-generator-backend' });
+});
+
+function buildLicensePayload(payload) {
+  const state = normalizeState(readField(payload, 'state') ?? 'WA');
+  const firstName = normalizeString(readField(payload, 'firstName'));
+  const middleName = normalizeString(readField(payload, 'middleName'));
+  const lastName = normalizeString(readField(payload, 'lastName'));
+  const dob = normalizeDate(readField(payload, 'dob') ?? readField(payload, 'dateOfBirth') ?? readField(payload, 'date_of_birth') ?? '');
+  const address = normalizeString(readField(payload, 'address'));
+
+  return {
+    state,
+    firstName,
+    middleName,
+    lastName,
+    dob,
+    address,
+    licenseNumber: `DL-${String(Date.now()).slice(-8)}`
+  };
+}
+
+function respondWithGeneratedLicense(req, res) {
+  const payload = parsePayload(req);
+  const errors = validateProfile(payload);
+
+  if (errors.length > 0) {
+    return res.status(400).json({ errors });
+  }
+
+  return res.status(200).json({
+    status: 'generated',
+    data: buildLicensePayload(payload)
+  });
+}
+
+app.post('/api/license/generate', respondWithGeneratedLicense);
+app.post('/generate', respondWithGeneratedLicense);
+
+function validateRequest(req, res) {
+  const payload = parsePayload(req);
+  const errors = validateProfile(payload);
+
+  return res.status(200).json({
+    valid: errors.length === 0,
+    errors
+  });
+}
+
+app.post('/api/license/validate', validateRequest);
+app.post('/validate', validateRequest);
+
+app.use((req, res) => {
+  res.status(404).json({ error: `Route not found: ${req.method} ${req.originalUrl}` });
+});
+
+app.use((err, _req, res, _next) => {
+  console.error(err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+if (require.main === module) {
+  const port = Number(process.env.PORT || 3000);
+  app.listen(port, () => {
+    console.log(`Backend listening on port ${port}`);
+  });
+}
+
+module.exports = app;
